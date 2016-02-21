@@ -1,46 +1,28 @@
 package org.roscoe.starfighter;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.OptionalDouble;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.IntStream;
 
-import com.google.common.math.DoubleMath;
-import com.google.common.math.IntMath;
-import com.google.common.math.LongMath;
-import com.google.common.primitives.Ints;
-
-import rx.Observable;
-import rx.functions.Action1;
-import rx.functions.Func2;
-import rx.functions.Func3;
-import rx.functions.FuncN;
-import rx.observables.MathObservable;
 import uk.co.leemorris.starfighter.StarfighterConnection;
 import uk.co.leemorris.starfighter.dto.HeartbeatResult;
-import uk.co.leemorris.starfighter.dto.NewOrderDetails;
-import uk.co.leemorris.starfighter.dto.NewOrderResponse;
 import uk.co.leemorris.starfighter.dto.VenueResult;
 import uk.co.leemorris.starfighter.model.Direction;
 import uk.co.leemorris.starfighter.model.Fill;
-import uk.co.leemorris.starfighter.model.OrderType;
 import uk.co.leemorris.starfighter.model.StockQuote;
 
 public class Sell {
 
 	public static void main(String[] args) throws InterruptedException {
-    	String stock = "FSI";
-    	String venue = "XTWEX";
-    	String account = "BM82206057";
-		String apiToken = "697a144bb2343794e7e613ded84f974955ec58a8";
+    	String stock = "RSM";
+    	String venue = "VNCEX";
+    	String account = "HFS69547423";
+		String apiToken = "697a144bb2343794e7e613ded84f974955ec58a8	";
 		
 		AtomicLong cash = new AtomicLong(0L);
+		AtomicInteger position = new AtomicInteger(0);
 
 		StarfighterConnection connection = new StarfighterConnection(apiToken);
 
@@ -59,9 +41,7 @@ public class Sell {
 //		avg10.subscribe(avg -> System.out.println("average of 10 last: " + avg));
 //		avg100.subscribe(avg -> System.out.println("average of 100 last: " + avg));
 		
-//		ConcurrentLinkedQueue
 		List<StockQuote> list = 
-//				Collections.synchronizedList(new LinkedList<StockQuote>());
 		new CopyOnWriteArrayList<>();
 		
 		connection.subscribeToQuotes(venue, account, stock).subscribe(sq->list.add(sq));
@@ -69,18 +49,17 @@ public class Sell {
 		connection.subscribeToFills(venue, account, stock).subscribe(fillSubscribtion-> {
 			System.out.println(fillSubscribtion);
 			
-			List<Fill> fills = fillSubscribtion.getOrder().getFills();
-			long sum = 0;
-			for (Fill fill : fills) {
-				sum += fill.getQty() * fill.getPrice();
-			}
-			final long finalSum = sum;
+			final long fillsCash = fillSubscribtion.getFilled() * fillSubscribtion.getPrice();
+			final int	fillsPosition = fillSubscribtion.getFilled();
 			if (fillSubscribtion.getOrder().getDirection() == Direction.BUY) {
-				cash.updateAndGet(x->x-finalSum);
+				cash.updateAndGet(x->x-fillsCash);
+				position.updateAndGet(x->x+fillsPosition);
 			} else {
-				cash.updateAndGet(x->x+finalSum);
+				cash.updateAndGet(x->x+fillsCash);
+				position.updateAndGet(x->x-fillsPosition);
 			}
 			System.out.println(cash.get());
+			System.out.println(position.get());
 		});
 		
 //    	for (;;) {
